@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#050816" />
+  <title>Campus Player ID — Sua Carta</title>
+  <link rel="icon" type="image/png" href="https://brasil.campus-party.org/wp-content/uploads/2021/11/LOGO_CP-BRASIL_BRANCO.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;800;900&display=swap" rel="stylesheet" />
+
+  <!--
+    ================================================================
+    CONFIGURACAO — ajustar em producao
+    ================================================================
+    - APPS_SCRIPT_URL: cole a URL do Web App apos deploy (Passo 2 do SETUP.md)
+    - GAME_ID: deve bater com EXPECTED_GAME_ID do apps_script.gs
+    - {{media_placeholder}} sera substituido pelo Content Mover ao gerar o QR
+      (URL do PNG da carta final composta)
+    ================================================================
+  -->
+  <style>
+    :root {
+      --bg-deep: #050816;
+      --bg-grad-1: rgba(0, 174, 239, 0.18);
+      --bg-grad-2: rgba(124, 58, 237, 0.18);
+      --cyan: #22d3ee;
+      --cyan-soft: #67e8f9;
+      --purple: #a855f7;
+      --magenta: #ff00ea;
+      --text: #ffffff;
+      --text-soft: rgba(255, 255, 255, 0.72);
+      --text-dim: rgba(255, 255, 255, 0.45);
+      --surface: rgba(255, 255, 255, 0.05);
+      --border: rgba(34, 211, 238, 0.3);
+      --error: #fb7185;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: auto; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Orbitron', 'Segoe UI', system-ui, sans-serif;
+      background:
+        radial-gradient(ellipse at top left, var(--bg-grad-1) 0%, transparent 55%),
+        radial-gradient(ellipse at bottom right, var(--bg-grad-2) 0%, transparent 55%),
+        var(--bg-deep);
+      background-attachment: fixed;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Subtle scanlines */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(34, 211, 238, 0.04) 0px,
+        rgba(34, 211, 238, 0.04) 1px,
+        transparent 1px,
+        transparent 4px
+      );
+      mix-blend-mode: overlay;
+    }
+
+    .page {
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 18px 0;
+      flex: 1;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* ============ HEADER LOGO ============ */
+    .header {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      margin-bottom: 22px;
+    }
+    .logo {
+      max-width: 200px;
+      width: 60%;
+      height: auto;
+      opacity: 0.95;
+    }
+
+    /* ============ GLITCH TITLE ============ */
+    .glitch {
+      position: relative;
+      display: inline-block;
+      color: var(--text);
+    }
+    .glitch::before,
+    .glitch::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      opacity: 0;
+    }
+    .glitch::before {
+      text-shadow: -2px 0 var(--cyan);
+      animation: glitch-1 9s infinite;
+    }
+    .glitch::after {
+      text-shadow: 2px 0 var(--magenta);
+      animation: glitch-2 11s infinite;
+    }
+    @keyframes glitch-1 {
+      0%, 60%, 100% { opacity: 0; clip-path: inset(0); transform: translate(0); }
+      62% { opacity: 1; clip-path: inset(10% 0 70% 0); transform: translate(-3px, 0); }
+      64% { opacity: 1; clip-path: inset(55% 0 25% 0); transform: translate(3px, 0); }
+      66% { opacity: 1; clip-path: inset(30% 0 50% 0); transform: translate(-2px, 0); }
+      68% { opacity: 0; }
+    }
+    @keyframes glitch-2 {
+      0%, 30%, 100% { opacity: 0; clip-path: inset(0); transform: translate(0); }
+      32% { opacity: 1; clip-path: inset(70% 0 10% 0); transform: translate(3px, 0); }
+      34% { opacity: 1; clip-path: inset(20% 0 60% 0); transform: translate(-3px, 0); }
+      36% { opacity: 1; clip-path: inset(45% 0 35% 0); transform: translate(2px, 0); }
+      38% { opacity: 0; }
+    }
+
+    /* ============ CARD PRINCIPAL ============ */
+    .main-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      width: 100%;
+      padding: 26px 22px 22px;
+      box-shadow: 0 0 50px -10px rgba(34, 211, 238, 0.25);
+      margin-bottom: 18px;
+      backdrop-filter: blur(8px);
+    }
+
+    .form-title {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 22px;
+      color: var(--text);
+      margin: 0 0 12px;
+      letter-spacing: 1.5px;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .form-subtitle {
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--text-soft);
+      text-align: center;
+      margin: 0 0 22px;
+      padding: 0 4px;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    /* ============ FORM ============ */
+    .input-wrapper { margin-bottom: 16px; }
+
+    .input-label {
+      display: block;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--cyan-soft);
+      letter-spacing: 2.5px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .input-email {
+      width: 100%;
+      padding: 14px 16px;
+      font-family: 'Orbitron', monospace;
+      font-size: 16px;
+      color: var(--text);
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .input-email:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 16px -2px rgba(34, 211, 238, 0.5);
+      background: rgba(0, 0, 0, 0.5);
+    }
+    .input-email::placeholder {
+      color: rgba(255, 255, 255, 0.25);
+      font-family: 'Segoe UI', sans-serif;
+      font-style: italic;
+    }
+
+    .error-msg {
+      color: var(--error);
+      font-size: 11px;
+      margin-top: 6px;
+      min-height: 14px;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    /* ============ CHECKBOXES ============ */
+    .checkbox-group { margin: 16px 0 20px; }
+
+    .checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 12px;
+      cursor: pointer;
+    }
+    .checkbox-row input[type="checkbox"] {
+      flex-shrink: 0;
+      margin-top: 2px;
+      width: 18px;
+      height: 18px;
+      accent-color: var(--cyan);
+      cursor: pointer;
+    }
+    .checkbox-label {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--text-soft);
+    }
+    .checkbox-label a {
+      color: var(--cyan-soft);
+      text-decoration: underline;
+    }
+
+    /* ============ BUTTONS ============ */
+    .btn {
+      width: 100%;
+      padding: 16px 18px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary {
+      background: var(--cyan);
+      color: #050816;
+      box-shadow: 0 0 28px rgba(34, 211, 238, 0.55);
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: var(--cyan-soft);
+      transform: translateY(-1px);
+    }
+    .btn-primary:disabled {
+      background: rgba(34, 211, 238, 0.18);
+      color: rgba(255, 255, 255, 0.3);
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+    /* Light sweep no botão primary */
+    .btn-primary:not(:disabled)::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -150%;
+      width: 50%;
+      height: 100%;
+      background: linear-gradient(
+        100deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.45) 50%,
+        transparent 100%
+      );
+      transform: skewX(-20deg);
+      animation: btn-sweep 5s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes btn-sweep {
+      0% { left: -150%; }
+      40% { left: 150%; }
+      100% { left: 150%; }
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-soft);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .btn-secondary:hover {
+      border-color: var(--cyan);
+      color: var(--text);
+      background: rgba(34, 211, 238, 0.06);
+    }
+
+    .btn-primary.loading { pointer-events: none; opacity: 0.7; }
+    .btn-primary.loading::before { content: '...'; }
+
+    /* ============ PHOTO SECTION ============ */
+    .photo-section {
+      display: none;
+      width: 100%;
+      animation: fadeIn 0.6s ease;
+    }
+    .photo-section.visible { display: block; }
+
+    .photo-title {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 24px;
+      color: var(--text);
+      margin: 0 0 6px;
+      letter-spacing: 1.5px;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .photo-subtitle {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      color: var(--text-soft);
+      text-align: center;
+      margin: 0 0 18px;
+    }
+
+    .image-card {
+      border: 2px solid var(--cyan);
+      border-radius: 14px;
+      overflow: hidden;
+      width: 100%;
+      box-shadow: 0 0 50px -10px rgba(34, 211, 238, 0.45);
+      margin-bottom: 18px;
+      background: #000;
+    }
+    #dynamicImage {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .download-wrapper {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .btn-download {
+      display: inline-block;
+      width: 100%;
+      padding: 16px 32px;
+      background: var(--cyan);
+      color: #050816;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-decoration: none;
+      border-radius: 10px;
+      transition: all 0.2s;
+      box-sizing: border-box;
+      box-shadow: 0 0 28px rgba(34, 211, 238, 0.55);
+    }
+    .btn-download:hover {
+      background: var(--cyan-soft);
+      transform: translateY(-1px);
+    }
+
+    /* ============ FOOTER ============ */
+    .footer-text {
+      text-align: center;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 10px;
+      color: var(--text-dim);
+      margin: 16px 0 24px;
+      letter-spacing: 0.5px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page">
+
+    <!-- ============ HEADER ============ -->
+    <div class="header">
+      <img class="logo"
+           src="https://brasil.campus-party.org/wp-content/uploads/2021/11/LOGO_CP-BRASIL_BRANCO.png"
+           alt="Campus Party Brasil" />
+    </div>
+
+    <!-- ============ FORM DE CAPTURA ============ -->
+    <div id="formCard" class="main-card">
+      <h1 class="form-title">
+        <span class="glitch" data-text="Sua Carta está Pronta!">Sua Carta está Pronta!</span>
+      </h1>
+      <p class="form-subtitle">
+        Deixa seu email pra receber novidades da Campus Party — ou vai direto pra sua carta.
+      </p>
+
+      <form id="leadForm" novalidate>
+        <div class="input-wrapper">
+          <label for="emailInput" class="input-label">Email</label>
+          <input
+            type="email"
+            id="emailInput"
+            class="input-email"
+            placeholder="seu@email.com"
+            autocomplete="email"
+            inputmode="email" />
+          <div id="emailError" class="error-msg"></div>
+        </div>
+
+        <div class="checkbox-group">
+          <label class="checkbox-row">
+            <input type="checkbox" id="consentMarketing" />
+            <span class="checkbox-label">
+              Quero receber novidades da Campus Party por email.
+            </span>
+          </label>
+
+          <label class="checkbox-row">
+            <input type="checkbox" id="consentPrivacy" />
+            <span class="checkbox-label">
+              Li e aceito a <a href="https://realgamesbr.github.io/campus-player-id/politica_privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.
+            </span>
+          </label>
+        </div>
+
+        <button type="submit" id="submitBtn" class="btn btn-primary" disabled>
+          Ver Minha Carta
+        </button>
+        <button type="button" id="skipBtn" class="btn btn-secondary">
+          Não quero deixar meu email
+        </button>
+      </form>
+    </div>
+
+    <!-- ============ PHOTO SECTION ============ -->
+    <div id="photoSection" class="photo-section">
+      <h2 class="photo-title">
+        <span class="glitch" data-text="Bem-vindo, Player!">Bem-vindo, Player!</span>
+      </h2>
+      <p class="photo-subtitle">Sua carta colecionável do Campus Player ID</p>
+
+      <div class="image-card">
+        <img id="dynamicImage" alt="Sua carta do Campus Player ID" />
+      </div>
+
+      <div class="download-wrapper">
+        <a id="downloadButton" class="btn-download">Baixar Carta</a>
+      </div>
+    </div>
+
+    <p class="footer-text">© Real Games Studio · Campus Party Brasil 2026</p>
+
+  </div>
+
+  <script>
+    // ================================================================
+    // CONFIGURACAO
+    // ================================================================
+    const GAME_ID = 'campus_player_id_cpbr18';
+    const APPS_SCRIPT_URL = 'COLE_AQUI_A_URL_DO_APPS_SCRIPT_WEB_APP';
+
+    // Substituido pelo Content Mover ao gerar o QR (URL do PNG da carta final).
+    // Fallback: se ainda for o placeholder literal (versao nao processada),
+    // aceita ?img=URL na query string pra permitir teste.
+    const RAW_PLACEHOLDER = '{{media_placeholder}}';
+    const _params = new URLSearchParams(window.location.search);
+    const dynamicSrc = (RAW_PLACEHOLDER === '{{media' + '_placeholder}}')
+      ? (_params.get('img') || '')
+      : RAW_PLACEHOLDER;
+
+    // ================================================================
+    // ELEMENTOS
+    // ================================================================
+    const formCard = document.getElementById('formCard');
+    const photoSection = document.getElementById('photoSection');
+    const leadForm = document.getElementById('leadForm');
+    const emailInput = document.getElementById('emailInput');
+    const consentMarketing = document.getElementById('consentMarketing');
+    const consentPrivacy = document.getElementById('consentPrivacy');
+    const submitBtn = document.getElementById('submitBtn');
+    const skipBtn = document.getElementById('skipBtn');
+    const emailError = document.getElementById('emailError');
+    const dynamicImage = document.getElementById('dynamicImage');
+    const downloadButton = document.getElementById('downloadButton');
+
+    // ================================================================
+    // VALIDACAO
+    // ================================================================
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const isValidEmail = (e) => EMAIL_REGEX.test(e.trim());
+
+    function updateSubmitState() {
+      submitBtn.disabled = !(isValidEmail(emailInput.value) && consentPrivacy.checked);
+    }
+
+    emailInput.addEventListener('input', () => {
+      emailError.textContent = '';
+      updateSubmitState();
+    });
+    emailInput.addEventListener('blur', () => {
+      const v = emailInput.value.trim();
+      if (v && !isValidEmail(v)) emailError.textContent = 'Email inválido. Verifique e tente novamente.';
+    });
+    consentMarketing.addEventListener('change', updateSubmitState);
+    consentPrivacy.addEventListener('change', updateSubmitState);
+
+    // ================================================================
+    // CARTA
+    // ================================================================
+    function prepareCard() {
+      dynamicImage.src = dynamicSrc;
+      downloadButton.href = dynamicSrc;
+      const fileName = (window.location.pathname.split('/').pop() || 'campus_player_id').replace(/\.html?$/i, '') + '.png';
+      downloadButton.setAttribute('download', fileName);
+    }
+
+    function showCard() {
+      prepareCard();
+      formCard.style.display = 'none';
+      photoSection.classList.add('visible');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ================================================================
+    // ENVIO DE EVENTO (lead OU skip)
+    // ================================================================
+    async function sendEvent(payload) {
+      try {
+        await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        return true;
+      } catch (e) {
+        console.error('Falha ao enviar evento', e);
+        return false;
+      }
+    }
+
+    function getPhotoId() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('id')) return params.get('id');
+      const fname = window.location.pathname.split('/').pop() || '';
+      return fname.replace(/\.html?$/i, '') || 'unknown';
+    }
+
+    // ================================================================
+    // SUBMIT — captura email
+    // ================================================================
+    leadForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = emailInput.value.trim();
+
+      if (!isValidEmail(email)) {
+        emailError.textContent = 'Email inválido.';
+        return;
+      }
+      if (!consentPrivacy.checked) return;
+
+      submitBtn.classList.add('loading');
+      submitBtn.textContent = 'Enviando';
+
+      const payload = {
+        event: 'lead',
+        game_id: GAME_ID,
+        email: email,
+        consent_marketing: consentMarketing.checked,
+        consent_privacy: consentPrivacy.checked,
+        photo_id: getPhotoId(),
+        timestamp: new Date().toISOString(),
+        user_agent: navigator.userAgent
+      };
+
+      try { localStorage.setItem('cp_lead_submitted_' + getPhotoId(), '1'); } catch (_) {}
+
+      sendEvent(payload);
+      showCard();
+    });
+
+    // ================================================================
+    // SKIP — pula sem deixar email (mas loga skip)
+    // ================================================================
+    skipBtn.addEventListener('click', () => {
+      const payload = {
+        event: 'skip',
+        game_id: GAME_ID,
+        email: '',
+        consent_marketing: false,
+        consent_privacy: false,
+        photo_id: getPhotoId(),
+        timestamp: new Date().toISOString(),
+        user_agent: navigator.userAgent
+      };
+
+      try { localStorage.setItem('cp_lead_skipped_' + getPhotoId(), '1'); } catch (_) {}
+
+      sendEvent(payload);
+      showCard();
+    });
+
+    // ================================================================
+    // INIT — se ja preencheu, vai direto pra carta
+    // ================================================================
+    (function init() {
+      const id = getPhotoId();
+      const submitted = (() => { try { return localStorage.getItem('cp_lead_submitted_' + id); } catch (_) { return null; } })();
+      const skipped = (() => { try { return localStorage.getItem('cp_lead_skipped_' + id); } catch (_) { return null; } })();
+      if (submitted || skipped) showCard();
+    })();
+  </script>
+</body>
+</html>
